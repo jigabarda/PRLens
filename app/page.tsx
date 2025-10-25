@@ -1,47 +1,56 @@
 "use client";
+import Link from "next/link";
+
 import { useState } from "react";
-import axios from "axios";
 
-// 🧩 Define TypeScript types for GitHub PRs
-interface GitHubUser {
+interface User {
   login: string;
-}
-
-interface GitHubPR {
-  id: number;
-  number: number;
-  title: string;
+  avatar_url: string;
   html_url: string;
-  user: GitHubUser;
-  state: string;
 }
 
-interface PRResponse {
+interface PullRequest {
+  html_url: string;
+  title: string;
+  state: string;
+  user?: User;
+}
+
+interface FetchResponse {
   message: string;
   totalPRs: number;
-  sampleData: GitHubPR[];
+  sampleData: PullRequest[];
 }
 
 export default function HomePage() {
-  const [repoUrl, setRepoUrl] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<PRResponse | null>(null);
-  const [error, setError] = useState("");
+  const [repoUrl, setRepoUrl] = useState<string>("");
+  const [loading, setLoading] = useState<boolean>(false);
+  const [result, setResult] = useState<FetchResponse | null>(null);
+  const [error, setError] = useState<string>("");
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleFetch = async () => {
     setLoading(true);
     setError("");
     setResult(null);
 
     try {
-      const res = await axios.post<PRResponse>("/api/pr/fetch", { repoUrl });
-      setResult(res.data);
+      const response = await fetch("/api/pr/fetch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ repoUrl }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`);
+      }
+
+      const data: FetchResponse = await response.json();
+      setResult(data);
     } catch (err: unknown) {
-      if (axios.isAxiosError(err)) {
-        setError(err.response?.data?.error || "Something went wrong");
+      if (err instanceof Error) {
+        setError(err.message);
       } else {
-        setError("Unexpected error occurred");
+        setError("Something went wrong");
       }
     } finally {
       setLoading(false);
@@ -49,58 +58,68 @@ export default function HomePage() {
   };
 
   return (
-    <main className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-6">
-      <div className="max-w-xl w-full bg-white rounded-2xl shadow-md p-8">
-        <h1 className="text-2xl font-bold mb-4 text-center text-gray-800">
-          PRLens – GitHub Pull Request Analyzer
+    <main className="flex flex-col items-center justify-center min-h-screen bg-gray-50 p-6">
+      <div className="w-full max-w-lg bg-white shadow-md rounded-2xl p-6 space-y-6">
+        <h1 className="text-2xl font-bold text-center text-gray-800">
+          GitHub PR Fetcher
         </h1>
 
-        <form onSubmit={handleSubmit} className="flex gap-2 mb-6">
+        <div className="flex space-x-2">
           <input
             type="text"
-            placeholder="Enter GitHub repo URL (e.g., https://github.com/vercel/next.js)"
+            placeholder="Enter GitHub repo URL (e.g. https://github.com/vercel/next.js)"
+            className="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
             value={repoUrl}
             onChange={(e) => setRepoUrl(e.target.value)}
-            className="flex-1 border rounded-lg p-3 focus:ring-2 focus:ring-indigo-500"
           />
           <button
-            type="submit"
+            onClick={handleFetch}
             disabled={loading}
-            className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 disabled:bg-gray-400"
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
           >
-            {loading ? "Fetching..." : "Analyze"}
+            {loading ? "Fetching..." : "Fetch"}
           </button>
-        </form>
+        </div>
 
-        {error && <p className="text-red-600 text-sm">{error}</p>}
+        {error && (
+          <p className="text-red-500 text-sm text-center">⚠️ {error}</p>
+        )}
 
         {result && (
-          <div className="mt-6">
-            <h2 className="font-semibold text-gray-700 mb-2">
-              Found {result.totalPRs} open PRs
-            </h2>
-            <ul className="space-y-2">
-              {result.sampleData.map((pr) => (
+          <div className="mt-4 space-y-3">
+            <p className="text-sm text-gray-600">
+              ✅ <strong>{result.message}</strong> <br />
+              Total PRs: <strong>{result.totalPRs}</strong>
+            </p>
+
+            <ul className="space-y-2 max-h-80 overflow-y-auto border-t pt-2">
+              {result.sampleData.slice(0, 5).map((pr, index) => (
                 <li
-                  key={pr.id}
-                  className="border p-3 rounded-lg hover:bg-gray-50 transition"
+                  key={index}
+                  className="p-3 border rounded-lg hover:bg-gray-50 transition"
                 >
                   <a
                     href={pr.html_url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-indigo-600 font-medium hover:underline"
+                    className="font-medium text-blue-600 hover:underline"
                   >
-                    #{pr.number} – {pr.title}
+                    {pr.title}
                   </a>
                   <p className="text-sm text-gray-500">
-                    by {pr.user.login} | {pr.state}
+                    by {pr.user?.login || "Unknown"} | State: {pr.state}
                   </p>
                 </li>
               ))}
             </ul>
           </div>
         )}
+        <Link
+          href="/pulls"
+          className="text-indigo-600 hover:underline block text-center mt-4"
+        >
+          View Saved PRs →
+        </Link>
       </div>
     </main>
   );
