@@ -21,6 +21,5 @@ model Analysis {
   owner      String
   repo       String
   prNumber   Int
-  resultJson String   @db.Text
   createdAt  DateTime @default(now())
 }
