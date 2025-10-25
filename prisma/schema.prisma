@@ -1,25 +1,25 @@
-datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
-}
-
 generator client {
   provider = "prisma-client-js"
 }
 
-model User {
-  id         Int     @id @default(autoincrement())
-  name       String?
-  email      String  @unique
-  image      String?
-  createdAt  DateTime @default(now())
-  // add more fields later as needed
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
 }
 
-model Analysis {
-  id         Int      @id @default(autoincrement())
-  owner      String
-  repo       String
-  prNumber   Int
-  createdAt  DateTime @default(now())
+model PullRequest {
+  id      Int     @id @default(autoincrement())
+  title   String
+  url     String  @unique
+  state   String
+  author  String
+}
+
+model RepoHistory {
+  id        Int      @id @default(autoincrement())
+  repoUrl   String
+  owner     String
+  repo      String
+  totalPRs  Int
+  createdAt DateTime @default(now())
 }
